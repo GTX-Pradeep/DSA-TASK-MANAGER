@@ -7,7 +7,7 @@
 
 // --- BST Helper Functions ---
 
-// MADE STATIC: Only used in this file
+// MADE STATIC: 
 static ProjectBSTNode* new_node(Project* project)
 { 
     ProjectBSTNode* node = (ProjectBSTNode*) malloc(sizeof(ProjectBSTNode));
@@ -18,7 +18,7 @@ static ProjectBSTNode* new_node(Project* project)
     return node;
 }
 
-// MADE STATIC: Only used in this file (by store_create_project)
+// MADE STATIC: 
 static ProjectBSTNode* bst_insert(ProjectBSTNode* root, Project* project) {
     if (!root) {
         return new_node( project);
@@ -28,14 +28,12 @@ static ProjectBSTNode* bst_insert(ProjectBSTNode* root, Project* project) {
     else if (project->id > root->project->id) 
         root->right = bst_insert(root->right, project);
     else {
-        // This case should be prevented by pre-check in store_create_project
-        // but if it happens, update project pointer (e.g., in a modify)
         root->project = project; 
     }
     return root;
 }
 
-// This function is used externally (by main.c, sat.c, pav.c)
+
 Project* bst_find(ProjectBSTNode* root, int project_id) {
     
     ProjectBSTNode* cur = root;
@@ -50,19 +48,15 @@ Project* bst_find(ProjectBSTNode* root, int project_id) {
     return NULL;
 }
 
-// --- REMOVED: Unused bst_traverse_inorder function ---
-
-
 int pq_enqueue(PriorityQueue** pq_head, Project* project) {
     
     if (pq_head == NULL || project == NULL) {
         return -1;
     }
 
-    // 1. Create the new node
     PriorityQueue* new_node = (PriorityQueue*)malloc(sizeof(PriorityQueue));
     if (new_node == NULL) {
-        fprintf(stderr, "Error: Unable to allocate memory for new PQ node.\n");
+        printf( "Error: Unable to allocate memory for new PQ node.\n");
         return -1;
     }
     
@@ -70,36 +64,35 @@ int pq_enqueue(PriorityQueue** pq_head, Project* project) {
     new_node->next = NULL;
 
     int new_priority = project->priority;
-    PriorityQueue* start = *pq_head; // Get the current head
+    PriorityQueue* start = *pq_head; 
 
-    // 2. Case 1: List is empty OR new node is the new head
+    // List is empty 
     if (start == NULL || start->project->priority > new_priority) {
         new_node->next = *pq_head;
-        *pq_head = new_node;       // Update the head pointer
+        *pq_head = new_node;       
     } else {
-        // 3. Case 2: Traverse to find insertion point
+        // Traverse to find insertion point
         while (start->next != NULL && start->next->project->priority <= new_priority) {
             start = start->next;
         }
         
-        // 4. Insert the new node
+        // Insert the new node
         new_node->next = start->next; 
         start->next = new_node;
     }
     
-    return 0; // Success
+    return 0; 
 }
 
 
 
-int store_create_project(ProjectStore* store, int id, const char* name, const char* client, float rate, float est_hours, int priority) {
-    int result = -1; // Default to error
+int store_create_project(ProjectStore* store, int id, const char* name, const char* client, float rate, int priority, Task new_tasks[], int task_count, Person* person_db, int person_count) {
 
     if (!store) {
         return -1;
     }
     
-    // Check for duplicate ID *before* allocating memory
+
     if (bst_find(store->root, id) != NULL) {
         printf("Error: Project ID %d already exists.\n");
         return -1; 
@@ -107,8 +100,9 @@ int store_create_project(ProjectStore* store, int id, const char* name, const ch
     
     Project* p = (Project*) malloc(sizeof(Project));
     if (!p) {
-      return -1; // malloc failed
+      return -1; 
     }
+    
     
     p->id = id;
     strncpy(p->name, name, MAX_NAME_LEN - 1);
@@ -116,11 +110,15 @@ int store_create_project(ProjectStore* store, int id, const char* name, const ch
     strncpy(p->client_name, client, MAX_NAME_LEN - 1);
     p->client_name[MAX_NAME_LEN - 1] = '\0';
     p->billing_rate = rate;
-    p->estimated_hours = est_hours;
     p->priority = priority;
     strncpy(p->status, "Pending", 19);
     p->status[19] = '\0';
-    p->assigned_person_id = -1;
+
+    p->task_count = task_count;
+    for (int i = 0; i < task_count; i++) {
+        p->tasks[i] = new_tasks[i]; 
+    }
+
     p->log_count = 0;
     
     // Add to BST
@@ -128,20 +126,19 @@ int store_create_project(ProjectStore* store, int id, const char* name, const ch
     
     // Add to Priority Queue
     if (pq_enqueue(&store->pq_head, p) != 0) {
-        // This would only fail on malloc error
-        // We should ideally remove from BST here, but it's complicated
+
         free(p);
         return -1;
     } 
     
-    store->size++;
-    result = 0; // Success
+     
     
-    return result;
+    store->size++;
+    
+    return 0;
 }
 
 int modify_project_details(Project* project, const char* new_name, const char* new_client_name, float new_rate) {
-    int result = -1;
     if (!project) {
         return -1;
     }
@@ -152,7 +149,6 @@ int modify_project_details(Project* project, const char* new_name, const char* n
     project->client_name[MAX_NAME_LEN - 1] = '\0';
     project->billing_rate = new_rate;
     
-    result = 0; // Success
     
-    return result;
+    return 0;
 }
