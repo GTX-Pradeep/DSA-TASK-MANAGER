@@ -23,7 +23,7 @@ Person* find_person(Person* person_db, int person_count, int person_id) {
     return found_person;
 }
 
-// MADE STATIC: Only used by bst_delete in this file
+// MADE STATIC:
 static ProjectBSTNode* bst_find_min(ProjectBSTNode* node) {
     while (node && node->left) 
         node = node->left;
@@ -31,7 +31,6 @@ static ProjectBSTNode* bst_find_min(ProjectBSTNode* node) {
 }
 
 
-// This function is used by me.c and main.c
 Project* pq_dequeue(PriorityQueue** pq_head) {
     
     if (pq_head == NULL || *pq_head == NULL) {
@@ -56,40 +55,40 @@ Project* pq_dequeue(PriorityQueue** pq_head) {
 }
 
 
-// MADE STATIC: Only used by store_delete_project_and_unassign in this file
+// MADE STATIC:
 static int pq_internal_remove(PriorityQueue** pq_head, Project* project) {
     
     if (pq_head == NULL || *pq_head == NULL || project == NULL) {
         return -1; 
     }
 
-    // 1. Case 1: The node to remove is the head
+    // The node to remove is the head
     if ((*pq_head)->project == project) {
         PriorityQueue* node_to_remove = *pq_head;
-        *pq_head = (*pq_head)->next; // Update the head pointer
+        *pq_head = (*pq_head)->next;
         free(node_to_remove);
         return 0; // Success
     }
 
-    // 2. Case 2: Search the rest of the list
+    //  Search the rest of the list
     PriorityQueue* current = *pq_head;
     
     while (current->next != NULL && current->next->project != project) {
         current = current->next;
     }
 
-    // 3. If we found the node
+  
     if (current->next != NULL) {
         PriorityQueue* node_to_remove = current->next;
-        current->next = node_to_remove->next; // Unlink it
+        current->next = node_to_remove->next; 
         free(node_to_remove);
-        return 0; // Success
+        return 0; 
     }
 
     return -1; // Not found
 }
 
-// MADE STATIC: Only used by store_delete_project_and_unassign in this file
+// MADE STATIC
 static ProjectBSTNode* bst_delete(ProjectBSTNode* root, int project_id, Project** removed) {
     if (!root)
         return NULL;
@@ -109,17 +108,23 @@ static ProjectBSTNode* bst_delete(ProjectBSTNode* root, int project_id, Project*
             return l;
         } else {
             ProjectBSTNode* succ = bst_find_min(root->right);
+            Project* temp_proj = root->project;
             root->project = succ->project;
+            succ->project = temp_proj; 
+            
+            
             Project* temp_removed = NULL; 
             root->right = bst_delete(root->right, succ->project->id, &temp_removed);
-            // Note: temp_removed project data is NOT freed, it's now in the root
-            // The *node* succ was part of is freed inside the recursive call.
+            
+            if (temp_removed != NULL) {
+                *removed = temp_removed;
+            }
         }
     }
     return root;
 }
 
-// MADE STATIC: Only used by store_delete_project_and_unassign in this file
+
 static void remove_project_from_person(Person* person, int project_id) {
     if (!person) {
         return;
@@ -134,7 +139,6 @@ static void remove_project_from_person(Person* person, int project_id) {
     }
     
     if (found_index != -1) {
-        // Shift elements down
         for (int i = found_index; i < person->workload - 1; i++) {
             person->assigned_projects[i] = person->assigned_projects[i + 1];
         }
@@ -144,44 +148,43 @@ static void remove_project_from_person(Person* person, int project_id) {
 
 
 int store_delete_project_and_unassign(ProjectStore* store, int project_id, Person* person_db, int person_count) {
-    int result = -1; // Default to error
+    int result = -1; 
     if (!store) {
-        return -1;
+        return result;
     }
     
-    // Find project first to get assigned person
     Project* proj = bst_find(store->root, project_id);
     if (!proj) {
-        return -1; // Not found
+        return result;
     } 
     
-    int assigned_id = proj->assigned_person_id;
-    int proj_id_copy = proj->id; // Copy ID before proj is freed
-    
-    // Delete from store (this frees the project memory and removes from heap/BST)
+
+    for (int i = 0; i < proj->task_count; i++) {
+        int assigned_id = proj->tasks[i].assigned_person_id;
+
+        if (assigned_id != -1) {
+            Person* p = find_person(person_db, person_count, assigned_id);
+            if (p) {
+              
+                remove_project_from_person(p, proj->id); 
+                printf("Info: Unassigned Task %d from Employee %d.\n", proj->tasks[i].id, assigned_id);
+            }
+        }
+    }
+
     Project* removed = NULL;
     store->root = bst_delete(store->root, project_id, &removed);
-    
-    if (!removed) {
-         // Not found in BST, this shouldn't happen if proj was found
-         return -1;
+
+    if (removed == NULL) {
+        printf("Error: Project deletion failed internally.\n");
+        return -1;
     }
+
+    pq_internal_remove(&store->pq_head, removed); 
     
-    // Remove from the priority queue as well
-    pq_internal_remove(&store->pq_head, removed);
-    
-    // Free the project memory
     free(removed);
     store->size--;
 
-    // If it was assigned, un-assign it from the person
-    if (assigned_id != -1) {
-        Person* p = find_person(person_db, person_count, assigned_id);
-        if (p) {
-            remove_project_from_person(p, proj_id_copy);
-        }
-    }
-    result = 0; // Success
-    
+    result = 0; 
     return result;
 }
