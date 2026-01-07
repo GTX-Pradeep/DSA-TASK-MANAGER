@@ -13,30 +13,36 @@
 typedef struct WorkLog {
     int person_id;
     float hours;
-    // Removed unused 'next' pointer
 } WorkLog;
+
+typedef struct Task {
+    int id;
+    char name[MAX_NAME_LEN];
+    char status[20]; 
+    int assigned_person_id;// -1 if unassigned
+} Task;
 
 typedef struct Project {
     int id;
     char name[MAX_NAME_LEN];
     char client_name[MAX_NAME_LEN];
     float billing_rate;
-    float estimated_hours;
     int priority; 
     char status[20];
-    int assigned_person_id;
-    WorkLog hours_logged[10]; // Max 10 different people logging hours per project
+    Task tasks[MAX_TASKS]; 
+    int task_count;
+    
+    WorkLog hours_logged[MAX_TASKS]; 
     int log_count;
     
 } Project;
-
 // --- CORRECTED Person ---
 typedef struct Person {
     int id;
     char name[MAX_NAME_LEN]; 
     int workload; 
-    // Array size now matches MAX_PROJECTS constant
     int assigned_projects[MAX_PROJECTS]; 
+    float total_hours;
 } Person;
 
 
@@ -49,18 +55,15 @@ typedef struct ProjectBSTNode {
 } ProjectBSTNode;
 
 
-// The PriorityQueue struct
 typedef struct PriorityQueue {
     Project* project;       
     struct PriorityQueue* next;
 } PriorityQueue;
 
 
-// --- ProjectStore ---
-// In project_structs.h
 typedef struct ProjectStore {
     ProjectBSTNode* root;
-    PriorityQueue* pq_head; // <-- Pointer to the first PQ node
+    PriorityQueue* pq_head; 
     int size;
 } ProjectStore;
 
